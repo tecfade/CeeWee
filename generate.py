@@ -91,6 +91,11 @@ def main() -> None:
     summary = load_summary(CV_DIR)
     print(f"  {len(projects)} Projekt(e) geladen")
 
+    hobby_dir = CV_DIR / "hobby_projects"
+    hobby_projects = load_projects(hobby_dir) if hobby_dir.exists() else []
+    if hobby_projects:
+        print(f"  {len(hobby_projects)} Hobby-Projekt(e) geladen")
+
     # ── Optionally analyse job posting ───────────────────────────────────────
     job_analysis = None
     client = anthropic.Anthropic()
@@ -127,6 +132,7 @@ def main() -> None:
         summary=summary,
         design_prompt=args.design,
         engine=args.engine,
+        hobby_projects=hobby_projects or None,
         job_analysis=job_analysis,
     )
 

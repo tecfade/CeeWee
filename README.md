@@ -6,8 +6,9 @@ CeeWee reads modular Markdown files with YAML frontmatter and pipes them through
 
 ## Stack
 
-- **Claude API** — generates HTML from your data + design prompt
-- **WeasyPrint** — renders HTML → PDF
+- **Claude API** — generates the CV document from your data + design prompt
+- **Typst** — primary render engine, compiles directly to PDF
+- **WeasyPrint** *(fallback)* — HTML → PDF when using `--engine html`
 - **Pandoc** *(optional)* — HTML → DOCX
 
 ## Setup
@@ -23,7 +24,7 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-# generic, default design
+# generic, default design (Typst → PDF)
 python generate.py
 
 # custom design
@@ -35,6 +36,9 @@ python generate.py --format pdf --target https://company.com/jobs/senior-fronten
 
 # same thing, but from a local file (useful when the page blocks scrapers)
 python generate.py --format pdf --job-description job.txt
+
+# fallback render engine (WeasyPrint instead of Typst)
+python generate.py --format pdf --engine html
 ```
 
 Output lands in `output/`.
@@ -56,13 +60,12 @@ Groups render as a single CV entry with an auto-generated overview, followed by
 indented sub-entries for each project inside the folder. Useful when you worked
 on multiple products under the same client over a longer period.
 
-Each project file uses YAML frontmatter:
+**Standalone project** (`projects/my-project.md`):
 
 ```yaml
 ---
 title: Project Name
-subprojectOf: Parent Projekt Name
-reihenfolge: 1          # sort order (ascending = chronological)
+reihenfolge: 1          # sort order, ascending = chronological
 zeitraum: "Jan.2023–Dec.2024"
 rolle: "Senior Frontend Engineer"
 technologien: [React, TypeScript, GraphQL]
@@ -77,7 +80,42 @@ hervorheben: true       # weight in the CV
 What you actually built and why it mattered.
 ```
 
-See `cv_example/` for reference.
+**Group parent** (`projects/ClientName/_parent.md`):
+
+```yaml
+---
+title: Client Name Platform
+reihenfolge: 2          # controls group position among all top-level entries
+zeitraum: "Jan.2021–Jetzt"
+kunde: Client AG
+link: https://client.url
+hervorheben: true
+---
+
+# optional: manual overview text
+# leave empty → auto-generated from sub-projects by Claude
+```
+
+**Sub-project** (`projects/ClientName/feature.md`):
+
+```yaml
+---
+title: Feature / Product Name
+reihenfolge: 1          # local sort order within the group
+zeitraum: "Jan.2021–Dez.2022"
+rolle: "Senior Frontend Engineer"
+technologien: [React, TypeScript]
+arbeitgeber: Your Employer GmbH
+kunde: Client AG
+hervorheben: true
+---
+
+## Description
+
+What this specific sub-project involved.
+```
+
+See `cv_example/` for a working reference with both standalone projects and a grouped engagement.
 
 ## Notes
 

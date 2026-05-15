@@ -4,7 +4,7 @@ from typing import Optional
 
 import anthropic
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-opus-4-7"
 
 # ── System prompts ────────────────────────────────────────────────────────────
 
@@ -46,7 +46,11 @@ Nicht existierende Funktionen — verwende diese NICHT: `#wrap-content`, `#layou
    - Gruppen (erkennbar an `[GRUPPE]`): Übergeordneter Eintrag mit Gesamtzeitraum und \
 kurzem Überblick (max. 2 Sätze), darunter die Unterprojekte als eingerückte Unterabschnitte. \
 Hat die Gruppe keinen eigenen Beschreibungstext, generiere den Überblick aus den Unterprojekten.
-4. Skills — alle Technologien kategorisiert (Frontend, Backend, Testing, Tools, CI/CD)
+4. Eigene Projekte — Hobby- und Open-Source-Projekte (nur falls vorhanden, Abschnitt \
+`## Eigene Projekte`). Kompakt, je 2–4 Stichpunkte, GitHub-Link als anklickbare URL darstellen. \
+Kein Arbeitgeber/Kunde-Feld — stattdessen nur Titel, Zeitraum, Tech-Tags und Beschreibung.
+5. Skills — alle Technologien aus Berufs- UND Eigenprojekten kategorisiert \
+(Frontend, Backend, Testing, Tools, CI/CD)
 
 ## Ausgaberegeln — bindend
 
@@ -71,7 +75,8 @@ als HTML-Dokument generieren.
 1. Header — Name, ggf. Kontaktdaten
 2. Profil/Summary — kompakte Zusammenfassung (3–5 Sätze)
 3. Berufserfahrung — Projekte neueste zuerst (absteigende reihenfolge)
-4. Skills — alle Technologien aus allen Projekten, sinnvoll kategorisiert
+4. Eigene Projekte — Hobby/Open-Source (nur falls vorhanden), kompakt mit GitHub-Link
+5. Skills — alle Technologien aus Berufs- UND Eigenprojekten, sinnvoll kategorisiert
 
 ## Ausgaberegeln — bindend
 
@@ -153,7 +158,11 @@ def _format_group(group: dict) -> str:
     return "\n".join(lines)
 
 
-def _build_project_data(projects: list[dict], summary: Optional[str]) -> str:
+def _build_project_data(
+    projects: list[dict],
+    summary: Optional[str],
+    hobby_projects: Optional[list[dict]] = None,
+) -> str:
     parts = []
 
     if summary:
@@ -165,6 +174,14 @@ def _build_project_data(projects: list[dict], summary: Optional[str]) -> str:
             parts.append(_format_project(item))
         else:
             parts.append(_format_group(item))
+
+    if hobby_projects:
+        parts.append("## Eigene Projekte")
+        for item in hobby_projects:
+            if item["type"] == "standalone":
+                parts.append(_format_project(item))
+            else:
+                parts.append(_format_group(item))
 
     return "\n\n".join(parts)
 
@@ -199,6 +216,7 @@ def generate_cv(
     summary: Optional[str],
     design_prompt: str,
     engine: str = "typst",
+    hobby_projects: Optional[list[dict]] = None,
     job_analysis: Optional[dict] = None,
     api_key: Optional[str] = None,
 ) -> str:
@@ -206,7 +224,7 @@ def generate_cv(
     client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
 
     system_prompt = _TYPST_SYSTEM_PROMPT if engine == "typst" else _HTML_SYSTEM_PROMPT
-    project_data = _build_project_data(projects, summary)
+    project_data = _build_project_data(projects, summary, hobby_projects)
     design_block = f"## Design-Anforderungen\n\n{design_prompt}"
 
     user_message_parts = [
