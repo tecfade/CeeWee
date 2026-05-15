@@ -70,6 +70,17 @@ def load_projects(projects_dir: Path) -> list[dict]:
     return items
 
 
+def load_employers(base_dir: Path) -> list[dict]:
+    """Load employers.md and return the list of employment entries."""
+    path = base_dir / "employers.md"
+    if not path.exists():
+        return []
+
+    content = path.read_text(encoding="utf-8")
+    metadata, _ = _parse_frontmatter(content)
+    return metadata.get("eintraege", [])
+
+
 def load_summary(base_dir: Path) -> Optional[str]:
     path = base_dir / "summary.md"
     if not path.exists():

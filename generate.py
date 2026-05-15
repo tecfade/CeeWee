@@ -79,7 +79,7 @@ def main() -> None:
     _require_api_key()
 
     # Lazy imports — only after env check so errors are clear
-    from core.loader import load_projects, load_summary
+    from core.loader import load_projects, load_summary, load_employers
     from core.scraper import fetch_job_posting
     from core.agent import analyze_job_posting, generate_cv
     from core.converter import convert
@@ -95,6 +95,10 @@ def main() -> None:
     hobby_projects = load_projects(hobby_dir) if hobby_dir.exists() else []
     if hobby_projects:
         print(f"  {len(hobby_projects)} Hobby-Projekt(e) geladen")
+
+    employers = load_employers(CV_DIR)
+    if employers:
+        print(f"  {len(employers)} Arbeitgeber geladen")
 
     # ── Optionally analyse job posting ───────────────────────────────────────
     job_analysis = None
@@ -133,6 +137,7 @@ def main() -> None:
         design_prompt=args.design,
         engine=args.engine,
         hobby_projects=hobby_projects or None,
+        employers=employers or None,
         job_analysis=job_analysis,
     )
 

@@ -1,111 +1,36 @@
 import json
 import os
+from pathlib import Path
 from typing import Optional
 
 import anthropic
+import yaml
 
-MODEL = "claude-opus-4-7"
+AGENTS_DIR = Path(__file__).parent.parent / "agents"
 
-# ── System prompts ────────────────────────────────────────────────────────────
 
-_TYPST_SYSTEM_PROMPT = """\
-Du bist ein professioneller Lebenslauf-Assistent für deutschsprachige Bewerbungen im IT-Bereich.
+# ── Agent file loader ─────────────────────────────────────────────────────────
 
-Deine Aufgabe: Aus strukturierten Projektdaten einen vollständigen, druckfertigen Lebenslauf \
-als Typst-Dokument generieren.
+def _load_agent(filename: str) -> tuple[dict, str]:
+    """Parse an agent .md file and return (frontmatter, body)."""
+    content = (AGENTS_DIR / filename).read_text(encoding="utf-8")
+    if not content.startswith("---"):
+        return {}, content
 
-## Typst-Syntax (Kurzreferenz)
+    parts = content.split("---", 2)
+    if len(parts) < 3:
+        return {}, content
 
-```
-#set page(paper: "a4", margin: (x: 1.5cm, y: 2cm))
-#set text(font: "Liberation Sans", size: 10pt, lang: "de")
-#set par(leading: 0.6em)
+    meta = yaml.safe_load(parts[1]) or {}
+    return meta, parts[2].strip()
 
-#let accent = rgb("#1565C0")          // Farbe definieren
 
-#text(weight: "bold")[Fett]           // Fettschrift
-#text(fill: accent)[Farbig]           // Farbe
-#align(center)[Zentriert]             // Ausrichtung
-#line(length: 100%, stroke: 0.5pt)    // Trennlinie
-#v(0.5em)                             // Vertikaler Abstand
-#h(1fr)                               // Flexibler horizontaler Abstand
-#grid(columns: (1fr, auto), [...], [...])  // Zweispaltiges Layout
-```
+# Load agents at import time
+_typst_meta, _TYPST_SYSTEM_PROMPT = _load_agent("cv-typst.md")
+_html_meta, _HTML_SYSTEM_PROMPT = _load_agent("cv-html.md")
+_analyzer_meta, _JOB_ANALYSIS_PROMPT = _load_agent("job-analyzer.md")
 
-Verfügbare Fonts (sicher auf Linux): "Liberation Sans", "Liberation Serif", \
-"DejaVu Sans", "DejaVu Serif", "New Computer Modern"
-
-Nicht existierende Funktionen — verwende diese NICHT: `#wrap-content`, `#layout`, `#place`
-
-## CV-Aufbau
-
-1. Header — Name prominent, Kontaktdaten klein darunter
-2. Profil/Summary — kompakte Zusammenfassung
-3. Berufserfahrung — Projekte neueste zuerst (absteigende reihenfolge)
-   - Standalone-Projekte: Titel + Zeitraum, Arbeitgeber/Kunde, Tech-Tags, Beschreibungspunkte
-   - Gruppen (erkennbar an `[GRUPPE]`): Übergeordneter Eintrag mit Gesamtzeitraum und \
-kurzem Überblick (max. 2 Sätze), darunter die Unterprojekte als eingerückte Unterabschnitte. \
-Hat die Gruppe keinen eigenen Beschreibungstext, generiere den Überblick aus den Unterprojekten.
-4. Eigene Projekte — Hobby- und Open-Source-Projekte (nur falls vorhanden, Abschnitt \
-`## Eigene Projekte`). Kompakt, je 2–4 Stichpunkte, GitHub-Link als anklickbare URL darstellen. \
-Kein Arbeitgeber/Kunde-Feld — stattdessen nur Titel, Zeitraum, Tech-Tags und Beschreibung.
-5. Skills — alle Technologien aus Berufs- UND Eigenprojekten kategorisiert \
-(Frontend, Backend, Testing, Tools, CI/CD)
-
-## Ausgaberegeln — bindend
-
-- Ausgabe: **ausschließlich** valides Typst-Markup — kein Text davor oder danach
-- Keine Code-Fences (kein ```typst Block)
-- Platzhalter `[TODO: ...]`, `[Zeitraum prüfen]`, `[Startdatum ergänzen]`, \
-`[Zeitraum unbekannt]` erscheinen **nicht** im Output
-- `ca. Aug.2025–Nov.2025` direkt ausgeben, ohne Marker
-- Sprache: durchgehend Deutsch
-- Kompakt: Ziel sind 1–2 DIN-A4-Seiten
-- Keine externen Ressourcen oder URLs im Typst-Code
-"""
-
-_HTML_SYSTEM_PROMPT = """\
-Du bist ein professioneller Lebenslauf-Assistent für deutschsprachige Bewerbungen im IT-Bereich.
-
-Deine Aufgabe: Aus strukturierten Projektdaten einen vollständigen, druckfertigen Lebenslauf \
-als HTML-Dokument generieren.
-
-## CV-Aufbau
-
-1. Header — Name, ggf. Kontaktdaten
-2. Profil/Summary — kompakte Zusammenfassung (3–5 Sätze)
-3. Berufserfahrung — Projekte neueste zuerst (absteigende reihenfolge)
-4. Eigene Projekte — Hobby/Open-Source (nur falls vorhanden), kompakt mit GitHub-Link
-5. Skills — alle Technologien aus Berufs- UND Eigenprojekten, sinnvoll kategorisiert
-
-## Ausgaberegeln — bindend
-
-- Ausgabe: **ausschließlich** ein vollständiges HTML5-Dokument von `<!DOCTYPE html>` bis `</html>`
-- CSS vollständig inline im `<style>`-Block — keine externen Stylesheets, kein JavaScript
-- Nur systemnahe Schriften: Arial, Helvetica, Georgia, "Segoe UI", sans-serif, serif
-- Platzhalter `[TODO: ...]`, `[Zeitraum prüfen]`, `[Startdatum ergänzen]`, \
-`[Zeitraum unbekannt]` erscheinen **nicht** im Output
-- Sprache: durchgehend Deutsch
-- Print-optimiert: `@media print`, DIN-A4 (210mm × 297mm), Ziel 1–2 Seiten
-"""
-
-_JOB_ANALYSIS_PROMPT = """\
-Analysiere die folgende Stellenanzeige und extrahiere die relevanten Informationen \
-für eine gezielte Bewerbung.
-
-Antworte ausschließlich mit einem JSON-Objekt (kein Markdown, kein Text davor oder danach):
-{
-  "position": "Jobtitel",
-  "unternehmen": "Unternehmensname",
-  "technologien": ["Tech1", "Tech2"],
-  "keywords": ["Keyword1", "Keyword2"],
-  "schwerpunkte": ["Schwerpunkt1"],
-  "kultur": "Kurze Beschreibung der Unternehmenskultur",
-  "erfahrungslevel": "Junior|Mid|Senior"
-}
-
-Stellenanzeige:
-"""
+MODEL = _typst_meta.get("model", "claude-opus-4-7")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -115,7 +40,7 @@ def analyze_job_posting(client: anthropic.Anthropic, job_text: str) -> Optional[
     response = client.messages.create(
         model=MODEL,
         max_tokens=1024,
-        messages=[{"role": "user", "content": _JOB_ANALYSIS_PROMPT + job_text[:8000]}],
+        messages=[{"role": "user", "content": _JOB_ANALYSIS_PROMPT + "\n\n" + job_text[:8000]}],
     )
     try:
         return json.loads(response.content[0].text)
@@ -158,15 +83,29 @@ def _format_group(group: dict) -> str:
     return "\n".join(lines)
 
 
+def _build_employers_block(employers: list[dict]) -> str:
+    lines = ["## Beruflicher Werdegang"]
+    for e in employers:
+        zeitraum = e.get("zeitraum", "")
+        arbeitgeber = e.get("arbeitgeber", "")
+        rolle = e.get("rolle", "")
+        lines.append(f"- **{zeitraum}** — {arbeitgeber} | {rolle}")
+    return "\n".join(lines)
+
+
 def _build_project_data(
     projects: list[dict],
     summary: Optional[str],
     hobby_projects: Optional[list[dict]] = None,
+    employers: Optional[list[dict]] = None,
 ) -> str:
     parts = []
 
     if summary:
         parts.append(f"## Kandidaten-Profil\n\n{summary}")
+
+    if employers:
+        parts.append(_build_employers_block(employers))
 
     parts.append("## Projekte")
     for item in projects:
@@ -217,6 +156,7 @@ def generate_cv(
     design_prompt: str,
     engine: str = "typst",
     hobby_projects: Optional[list[dict]] = None,
+    employers: Optional[list[dict]] = None,
     job_analysis: Optional[dict] = None,
     api_key: Optional[str] = None,
 ) -> str:
@@ -224,7 +164,7 @@ def generate_cv(
     client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
 
     system_prompt = _TYPST_SYSTEM_PROMPT if engine == "typst" else _HTML_SYSTEM_PROMPT
-    project_data = _build_project_data(projects, summary, hobby_projects)
+    project_data = _build_project_data(projects, summary, hobby_projects, employers)
     design_block = f"## Design-Anforderungen\n\n{design_prompt}"
 
     user_message_parts = [

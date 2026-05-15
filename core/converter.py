@@ -1,6 +1,12 @@
 import shutil
 import subprocess
+from datetime import datetime
 from pathlib import Path
+
+
+def _stem(output_dir: Path) -> str:
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return f"cv_{ts}"
 
 
 # ── Typst ─────────────────────────────────────────────────────────────────────
@@ -67,16 +73,17 @@ def html_to_docx(html_path: Path, docx_path: Path) -> None:
 
 def convert(source: str, output_dir: Path, formats: list[str], engine: str = "typst") -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
+    stem = _stem(output_dir)
 
     if engine == "typst":
-        typ_path = output_dir / "cv.typ"
+        typ_path = output_dir / f"{stem}.typ"
         save_typst(source, typ_path)
         if "pdf" in formats:
-            typst_to_pdf(typ_path, output_dir / "cv.pdf")
+            typst_to_pdf(typ_path, output_dir / f"{stem}.pdf")
     else:
-        html_path = output_dir / "cv.html"
+        html_path = output_dir / f"{stem}.html"
         save_html(source, html_path)
         if "pdf" in formats:
-            html_to_pdf(html_path, output_dir / "cv.pdf")
+            html_to_pdf(html_path, output_dir / f"{stem}.pdf")
         if "docx" in formats:
-            html_to_docx(html_path, output_dir / "cv.docx")
+            html_to_docx(html_path, output_dir / f"{stem}.docx")
