@@ -83,6 +83,19 @@ def _format_group(group: dict) -> str:
     return "\n".join(lines)
 
 
+def _build_skills_block(gruppen: list[dict]) -> str:
+    lines = ["## Skills"]
+    for gruppe in gruppen:
+        name = gruppe.get("name", "")
+        skills = gruppe.get("skills", [])
+        if isinstance(skills, list):
+            skills_str = ", ".join(str(s) for s in skills)
+        else:
+            skills_str = str(skills)
+        lines.append(f"- **{name}**: {skills_str}")
+    return "\n".join(lines)
+
+
 def _build_employers_block(employers: list[dict]) -> str:
     lines = ["## Beruflicher Werdegang"]
     for e in employers:
@@ -98,6 +111,7 @@ def _build_project_data(
     summary: Optional[str],
     hobby_projects: Optional[list[dict]] = None,
     employers: Optional[list[dict]] = None,
+    skills: Optional[list[dict]] = None,
 ) -> str:
     parts = []
 
@@ -106,6 +120,9 @@ def _build_project_data(
 
     if employers:
         parts.append(_build_employers_block(employers))
+
+    if skills:
+        parts.append(_build_skills_block(skills))
 
     parts.append("## Projekte")
     for item in projects:
@@ -157,6 +174,7 @@ def generate_cv(
     engine: str = "typst",
     hobby_projects: Optional[list[dict]] = None,
     employers: Optional[list[dict]] = None,
+    skills: Optional[list[dict]] = None,
     job_analysis: Optional[dict] = None,
     api_key: Optional[str] = None,
 ) -> str:
@@ -164,7 +182,7 @@ def generate_cv(
     client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
 
     system_prompt = _TYPST_SYSTEM_PROMPT if engine == "typst" else _HTML_SYSTEM_PROMPT
-    project_data = _build_project_data(projects, summary, hobby_projects, employers)
+    project_data = _build_project_data(projects, summary, hobby_projects, employers, skills)
     design_block = f"## Design-Anforderungen\n\n{design_prompt}"
 
     user_message_parts = [

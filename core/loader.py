@@ -81,6 +81,17 @@ def load_employers(base_dir: Path) -> list[dict]:
     return metadata.get("eintraege", [])
 
 
+def load_skills(base_dir: Path) -> list[dict]:
+    """Lädt skills.md und gibt die Liste der Skill-Gruppen zurück."""
+    path = base_dir / "skills.md"
+    if not path.exists():
+        return []
+
+    content = path.read_text(encoding="utf-8")
+    metadata, _ = _parse_frontmatter(content)
+    return metadata.get("gruppen", [])
+
+
 def load_summary(base_dir: Path) -> Optional[str]:
     path = base_dir / "summary.md"
     if not path.exists():
