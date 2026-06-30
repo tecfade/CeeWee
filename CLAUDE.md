@@ -23,6 +23,7 @@ CeeWee/
 │   ├── converter.py           # Ausgabe speichern und nach PDF/DOCX konvertieren
 │   └── scraper.py             # Stellenanzeigen von URLs abrufen
 ├── cv/                        # Eigene CV-Daten
+│   ├── contact.md             # Kontaktdaten (Name, Email, Telefon, Adresse, Links)
 │   ├── summary.md             # Kandidaten-Profil / Kurzvorstellung
 │   ├── employers.md           # Arbeitgeber-Liste (YAML-Frontmatter: eintraege: […])
 │   ├── skills.md              # Skill-Gruppen (YAML-Frontmatter: gruppen: […])
@@ -50,7 +51,7 @@ CeeWee/
 
 ## Generierungsablauf
 
-1. `generate.py` lädt Projektdaten, Summary und Arbeitgeber aus `cv/`
+1. `generate.py` lädt Projektdaten, Summary, Arbeitgeber und Kontaktdaten aus `cv/`
 2. Optional: Stellenanzeige per URL (`--target`) oder Datei (`--job-description`) abrufen und per Claude analysieren
 3. Claude generiert ein vollständiges Typst- oder HTML-Dokument
 4. `converter.py` speichert die Quelldatei und konvertiert nach PDF/DOCX
@@ -58,6 +59,22 @@ CeeWee/
 Der Claude-Aufruf in `core/agent.py` nutzt Prompt Caching (`cache_control: ephemeral`) für Projektdaten und System-Prompt.
 
 ## Frontmatter-Schema
+
+### Kontaktdaten (`cv/contact.md`)
+
+```yaml
+---
+name: Vorname Nachname
+email: name@example.com
+telefon: "+49 151 12345678"    # optional
+adresse: "Straße 1, PLZ Ort"   # optional
+website: https://…             # optional
+linkedin: https://…            # optional
+github: https://…              # optional
+---
+```
+
+Alle Felder außer `name` sind optional. Nicht gesetzte Felder erscheinen nicht im generierten Lebenslauf (keine Platzhalter).
 
 ### Projekte (`cv/projects/[name].md`)
 

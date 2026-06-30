@@ -96,6 +96,15 @@ def _build_skills_block(gruppen: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _build_contact_block(contact: dict) -> str:
+    lines = ["## Kontaktdaten"]
+    for key in ("name", "titel", "email", "telefon", "adresse", "website", "linkedin", "github"):
+        val = contact.get(key)
+        if val:
+            lines.append(f"- **{key}**: {val}")
+    return "\n".join(lines)
+
+
 def _build_employers_block(employers: list[dict]) -> str:
     lines = ["## Beruflicher Werdegang"]
     for e in employers:
@@ -112,8 +121,12 @@ def _build_project_data(
     hobby_projects: Optional[list[dict]] = None,
     employers: Optional[list[dict]] = None,
     skills: Optional[list[dict]] = None,
+    contact: Optional[dict] = None,
 ) -> str:
     parts = []
+
+    if contact:
+        parts.append(_build_contact_block(contact))
 
     if summary:
         parts.append(f"## Kandidaten-Profil\n\n{summary}")
@@ -175,6 +188,7 @@ def generate_cv(
     hobby_projects: Optional[list[dict]] = None,
     employers: Optional[list[dict]] = None,
     skills: Optional[list[dict]] = None,
+    contact: Optional[dict] = None,
     job_analysis: Optional[dict] = None,
     api_key: Optional[str] = None,
 ) -> str:
@@ -182,7 +196,7 @@ def generate_cv(
     client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
 
     system_prompt = _TYPST_SYSTEM_PROMPT if engine == "typst" else _HTML_SYSTEM_PROMPT
-    project_data = _build_project_data(projects, summary, hobby_projects, employers, skills)
+    project_data = _build_project_data(projects, summary, hobby_projects, employers, skills, contact)
     design_block = f"## Design-Anforderungen\n\n{design_prompt}"
 
     user_message_parts = [
