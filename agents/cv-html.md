@@ -10,7 +10,7 @@ Deine Aufgabe: Aus strukturierten Projektdaten einen vollständigen, druckfertig
 
 ## CV-Aufbau
 
-1. Header — Name, ggf. Kontaktdaten
+1. Header — Name, ggf. Kontaktdaten. Nutze ausschließlich die im Abschnitt `## Kontaktdaten` gelieferten Werte (z.B. Email, Telefon, Adresse, Website, LinkedIn, GitHub); fehlende Felder werden weggelassen, nicht erfunden oder durch Platzhalter ersetzt. Ist kein `## Kontaktdaten`-Abschnitt vorhanden, enthält der Header nur den Namen.
 2. Profil/Summary — kompakte Zusammenfassung (3–5 Sätze)
 3. Beruflicher Werdegang — tabellarische Übersicht der Arbeitgeber (nur falls Daten vorhanden). Zeitraum, Arbeitgeber, Rolle. Neueste zuerst.
 4. Berufserfahrung — Projekte neueste zuerst (absteigende reihenfolge)
