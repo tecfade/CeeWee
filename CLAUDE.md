@@ -64,6 +64,8 @@ CeeWee/
 
 Werden CV und Anschreiben im selben Lauf erzeugt, wird zuerst der CV generiert; die dort tatsächlich verwendete Akzentfarbe/Schriftart wird per `_extract_design_tokens()` aus dem generierten Dokument ausgelesen und dem Anschreiben-Agenten verbindlich vorgegeben (siehe Design-Werte-Konvention unten), damit beide Dokumente optisch als zusammengehöriges Bewerbungspaket wirken. Bei getrennten Läufen (`--cv` heute, `--cover` später) entfällt diese Garantie.
 
+Optional kann per `--match-style` (setzt `--target` voraus) Akzentfarbe und Schriftcharakter (serif/sans-serif) der Stellenanzeigen-Zielseite übernommen werden, damit die generierten Unterlagen optisch an die Marke des potenziellen Arbeitgebers angelehnt sind. Die daraus gewonnenen Marken-Tokens sind der Ausgangswert für den CV; tatsächlich im generierten CV gelandete Design-Werte (via `_extract_design_tokens()`) haben weiterhin Vorrang für das Anschreiben.
+
 Der Claude-Aufruf in `core/agent.py` nutzt Prompt Caching (`cache_control: ephemeral`) für Projektdaten und System-Prompt.
 
 ### Design-Werte-Konvention
