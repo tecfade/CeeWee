@@ -37,6 +37,9 @@ python generate.py --format pdf --target https://company.com/jobs/senior-fronten
 # same thing, but from a local file (useful when the page blocks scrapers)
 python generate.py --format pdf --job-description job.txt
 
+# match the target company's brand style (accent color, font) — requires --target
+python generate.py --format pdf --target https://company.com/jobs/senior-frontend --match-style
+
 # fallback render engine (WeasyPrint instead of Typst)
 python generate.py --format pdf --engine html
 ```
