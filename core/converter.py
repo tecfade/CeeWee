@@ -2,11 +2,16 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 
-def _stem(output_dir: Path) -> str:
-    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return f"cv_{ts}"
+def new_timestamp() -> str:
+    """Zeitstempel für einen Generierungslauf — von generate.py einmalig erzeugt und für CV und Anschreiben geteilt."""
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def _stem(prefix: str = "cv") -> str:
+    return f"{prefix}_{new_timestamp()}"
 
 
 # ── Typst ─────────────────────────────────────────────────────────────────────
@@ -71,9 +76,16 @@ def html_to_docx(html_path: Path, docx_path: Path) -> None:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-def convert(source: str, output_dir: Path, formats: list[str], engine: str = "typst") -> None:
+def convert(
+    source: str,
+    output_dir: Path,
+    formats: list[str],
+    engine: str = "typst",
+    prefix: str = "cv",
+    stem: Optional[str] = None,
+) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    stem = _stem(output_dir)
+    stem = stem or _stem(prefix)
 
     if engine == "typst":
         typ_path = output_dir / f"{stem}.typ"

@@ -8,6 +8,8 @@ Verwendung:
   python generate.py --format html pdf --design "minimalistisch, Akzentfarbe Dunkelblau"
   python generate.py --format pdf --target https://company.com/jobs/senior-frontend
   python generate.py --format pdf --job-description stellenanzeige.txt
+  python generate.py --cv                          # nur Lebenslauf
+  python generate.py --cover --target https://…     # nur Anschreiben, tailored
 """
 import argparse
 import os
@@ -74,16 +76,33 @@ def main() -> None:
         default=BASE_DIR / "output",
         help="Ausgabeverzeichnis  (Standard: ./output)",
     )
+    parser.add_argument(
+        "--cv",
+        action="store_true",
+        help="Nur den Lebenslauf generieren",
+    )
+    parser.add_argument(
+        "--cover",
+        action="store_true",
+        help="Nur das Anschreiben generieren",
+    )
     args = parser.parse_args()
 
     _require_api_key()
 
     # Lazy imports — only after env check so errors are clear
-    from core.loader import load_projects, load_summary, load_employers, load_skills, load_contact
+    from core.loader import (
+        load_projects, load_summary, load_employers, load_skills,
+        load_contact, load_cover_notes,
+    )
     from core.scraper import fetch_job_posting
-    from core.agent import analyze_job_posting, generate_cv
-    from core.converter import convert
+    from core.agent import analyze_job_posting, generate_cv, generate_cover_letter, _extract_design_tokens
+    from core.converter import convert, new_timestamp
     import anthropic
+
+    generate_both = not args.cv and not args.cover
+    want_cv = args.cv or generate_both
+    want_cover = args.cover or generate_both
 
     # ── Load project data ────────────────────────────────────────────────────
     print("Lade Projektdaten …")
@@ -107,6 +126,7 @@ def main() -> None:
     contact = load_contact(CV_DIR)
     if contact:
         print(f"  Kontaktdaten geladen ({contact.get('name', '–')})")
+    cover_notes = load_cover_notes(CV_DIR) if want_cover else None
 
     # ── Optionally analyse job posting ───────────────────────────────────────
     job_analysis = None
@@ -135,24 +155,49 @@ def main() -> None:
         else:
             print("  Analyse fehlgeschlagen – generiere ohne Tailoring")
 
-    # ── Generate CV ──────────────────────────────────────────────────────────
     tailoring_note = f" (tailored für {job_analysis.get('unternehmen')})" if job_analysis else ""
-    print(f"Generiere Lebenslauf{tailoring_note} …")
+    ts = new_timestamp()
+    design_tokens = None
 
-    source = generate_cv(
-        projects=projects,
-        summary=summary,
-        design_prompt=args.design,
-        engine=args.engine,
-        hobby_projects=hobby_projects or None,
-        employers=employers or None,
-        skills=skills or None,
-        contact=contact or None,
-        job_analysis=job_analysis,
-    )
+    # ── Generate CV ──────────────────────────────────────────────────────────
+    if want_cv:
+        print(f"Generiere Lebenslauf{tailoring_note} …")
 
-    # ── Convert & save ───────────────────────────────────────────────────────
-    convert(source, args.output, args.format, engine=args.engine)
+        cv_source = generate_cv(
+            projects=projects,
+            summary=summary,
+            design_prompt=args.design,
+            engine=args.engine,
+            hobby_projects=hobby_projects or None,
+            employers=employers or None,
+            skills=skills or None,
+            contact=contact or None,
+            job_analysis=job_analysis,
+        )
+
+        convert(cv_source, args.output, args.format, engine=args.engine, prefix="cv", stem=f"cv_{ts}")
+
+        if want_cover:
+            design_tokens = _extract_design_tokens(cv_source, args.engine)
+
+    # ── Generate cover letter ────────────────────────────────────────────────
+    if want_cover:
+        print(f"Generiere Anschreiben{tailoring_note} …")
+
+        cover_source = generate_cover_letter(
+            contact=contact,
+            summary=summary,
+            employers=employers or None,
+            projects=projects,
+            design_prompt=args.design,
+            engine=args.engine,
+            job_analysis=job_analysis,
+            cover_notes=cover_notes,
+            design_tokens=design_tokens,
+        )
+
+        convert(cover_source, args.output, args.format, engine=args.engine, prefix="cover", stem=f"cover_{ts}")
+
     print("Fertig.")
 
 

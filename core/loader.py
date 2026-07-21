@@ -111,3 +111,14 @@ def load_summary(base_dir: Path) -> Optional[str]:
     content = path.read_text(encoding="utf-8")
     _, body = _parse_frontmatter(content)
     return body.strip() or None
+
+
+def load_cover_notes(base_dir: Path) -> Optional[str]:
+    """Lädt cover.md (optionaler Anschreiben-Entwurf/Eckpunkte) und gibt den Body-Text zurück."""
+    path = base_dir / "cover.md"
+    if not path.exists():
+        return None
+
+    content = path.read_text(encoding="utf-8")
+    _, body = _parse_frontmatter(content)
+    return body.strip() or None

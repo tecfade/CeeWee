@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +30,8 @@ def _load_agent(filename: str) -> tuple[dict, str]:
 _typst_meta, _TYPST_SYSTEM_PROMPT = _load_agent("cv-typst.md")
 _html_meta, _HTML_SYSTEM_PROMPT = _load_agent("cv-html.md")
 _analyzer_meta, _JOB_ANALYSIS_PROMPT = _load_agent("job-analyzer.md")
+_cover_typst_meta, _COVER_TYPST_SYSTEM_PROMPT = _load_agent("cover-typst.md")
+_cover_html_meta, _COVER_HTML_SYSTEM_PROMPT = _load_agent("cover-html.md")
 
 MODEL = _typst_meta.get("model", "claude-opus-4-7")
 
@@ -155,6 +158,54 @@ def _build_project_data(
     return "\n\n".join(parts)
 
 
+def _build_condensed_experience(
+    projects: list[dict],
+    employers: Optional[list[dict]] = None,
+) -> str:
+    """Verdichtete Berufserfahrung fürs Anschreiben — Titel/Zeitraum/Tech statt voller Projektbeschreibungen."""
+    parts = []
+
+    if employers:
+        parts.append(_build_employers_block(employers))
+
+    lines = ["## Relevante Projekte (Auszug)"]
+    for item in projects:
+        if item["type"] == "standalone":
+            m = item["metadata"]
+            title = m.get("title", item["file"])
+            zeitraum = m.get("zeitraum", "")
+            technologien = m.get("technologien", [])
+            tech_str = ", ".join(technologien) if isinstance(technologien, list) else str(technologien)
+            lines.append(f"- **{title}** ({zeitraum}) — {tech_str}")
+        else:
+            pm = item["parent_metadata"]
+            title = pm.get("title", item["dir"])
+            zeitraum = pm.get("zeitraum", "")
+            lines.append(f"- **{title}** ({zeitraum}) [Gruppe]")
+    parts.append("\n".join(lines))
+
+    return "\n\n".join(parts)
+
+
+def _extract_design_tokens(source: str, engine: str) -> dict:
+    """Liest Akzentfarbe und Schriftart aus einem bereits generierten Dokument aus."""
+    if engine == "typst":
+        accent_pattern = r'#let\s+accent\s*=\s*rgb\("(#[0-9A-Fa-f]{6})"\)'
+        font_pattern = r'font:\s*"([^"]+)"'
+    else:
+        accent_pattern = r'--accent-color:\s*([^;]+);'
+        font_pattern = r'--font-family:\s*([^;]+);'
+
+    tokens = {}
+    accent_match = re.search(accent_pattern, source)
+    if accent_match:
+        tokens["accent"] = accent_match.group(1).strip()
+    font_match = re.search(font_pattern, source)
+    if font_match:
+        tokens["font"] = font_match.group(1).strip()
+    return tokens
+
+
 def _build_tailoring_block(job: dict) -> str:
     techs = ", ".join(job.get("technologien", []))
     keywords = ", ".join(job.get("keywords", []))
@@ -216,6 +267,67 @@ def generate_cv(
     response = client.messages.create(
         model=MODEL,
         max_tokens=8096,
+        system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": user_message_parts}],
+    )
+
+    return response.content[0].text
+
+
+def generate_cover_letter(
+    contact: dict,
+    summary: Optional[str],
+    employers: Optional[list[dict]],
+    projects: list[dict],
+    design_prompt: str,
+    engine: str = "typst",
+    job_analysis: Optional[dict] = None,
+    cover_notes: Optional[str] = None,
+    design_tokens: Optional[dict] = None,
+    api_key: Optional[str] = None,
+) -> str:
+    """Call Claude API and return a cover letter document (Typst or HTML depending on engine)."""
+    client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
+
+    system_prompt = _COVER_TYPST_SYSTEM_PROMPT if engine == "typst" else _COVER_HTML_SYSTEM_PROMPT
+
+    candidate_parts = []
+    if contact:
+        candidate_parts.append(_build_contact_block(contact))
+    if summary:
+        candidate_parts.append(f"## Kandidaten-Profil\n\n{summary}")
+    candidate_parts.append(_build_condensed_experience(projects, employers))
+    if cover_notes:
+        candidate_parts.append(f"## Anschreiben-Notizen\n\n{cover_notes}")
+    candidate_data = "\n\n".join(p for p in candidate_parts if p)
+
+    design_block = f"## Design-Anforderungen\n\n{design_prompt}"
+    if design_tokens:
+        accent = design_tokens.get("accent")
+        font = design_tokens.get("font")
+        if accent or font:
+            vorgaben = ", ".join(
+                filter(None, [f"Akzentfarbe {accent}" if accent else None, f"Schriftart {font}" if font else None])
+            )
+            design_block += f"\n\nVerwende exakt: {vorgaben}"
+
+    user_message_parts = [
+        {
+            "type": "text",
+            "text": candidate_data,
+            "cache_control": {"type": "ephemeral"},
+        },
+        {
+            "type": "text",
+            "text": "\n\n---\n\n".join(
+                [design_block] + ([_build_tailoring_block(job_analysis)] if job_analysis else [])
+            ),
+        },
+    ]
+
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=4096,
         system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message_parts}],
     )
