@@ -46,6 +46,7 @@ Nicht existierende Funktionen — verwende diese NICHT: `#wrap-content`, `#layou
 - Ausgabe: **ausschließlich** valides Typst-Markup — kein Text davor oder danach
 - Keine Code-Fences (kein ```typst Block)
 - Design-Werte müssen maschinell auslesbar sein: genau eine `#let accent = rgb("#RRGGBB")`-Definition nahe dem Dokumentanfang und genau eine `font:`-Angabe im initialen `#set text(...)`. Beide Werte im weiteren Dokument wiederverwenden statt sie erneut hart zu kodieren.
+- **Werden konkrete Design-Vorgaben (Akzentfarbe, Schriftart) im User-Prompt mitgeliefert, sind exakt diese Werte zu verwenden statt eigene zu wählen.**
 - Platzhalter `[TODO: ...]`, `[Zeitraum prüfen]`, `[Startdatum ergänzen]`, `[Zeitraum unbekannt]` erscheinen **nicht** im Output
 - `ca. Aug.2025–Nov.2025` direkt ausgeben, ohne Marker
 - Sprache: durchgehend Deutsch

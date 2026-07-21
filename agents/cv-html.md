@@ -23,6 +23,7 @@ Deine Aufgabe: Aus strukturierten Projektdaten einen vollständigen, druckfertig
 - CSS vollständig inline im `<style>`-Block — keine externen Stylesheets, kein JavaScript
 - Nur systemnahe Schriften: Arial, Helvetica, Georgia, "Segoe UI", sans-serif, serif
 - Design-Werte müssen maschinell auslesbar sein: CSS-Custom-Properties `--accent-color` und `--font-family` im `:root { … }` des `<style>`-Blocks definieren und im Rest des Dokuments referenzieren (`var(--accent-color)` usw.) statt Werte erneut hart zu kodieren.
+- **Werden konkrete Design-Vorgaben (Akzentfarbe, Schriftart) im User-Prompt mitgeliefert, sind exakt diese Werte zu verwenden statt eigene zu wählen.**
 - Platzhalter `[TODO: ...]`, `[Zeitraum prüfen]`, `[Startdatum ergänzen]`, `[Zeitraum unbekannt]` erscheinen **nicht** im Output
 - Sprache: durchgehend Deutsch
 - Print-optimiert: `@media print`, DIN-A4 (210mm × 297mm), Ziel 1–2 Seiten
