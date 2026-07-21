@@ -1,4 +1,7 @@
+import re
+from collections import Counter
 from typing import Optional
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -13,6 +16,10 @@ _HEADERS = {
 
 # Tags whose content is never useful for job analysis
 _NOISE_TAGS = ["script", "style", "nav", "footer", "header", "aside", "noscript"]
+
+_COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b|rgb\([^)]+\)")
+_FONT_FAMILY_PATTERN = re.compile(r"font-family\s*:\s*([^;}{]+)")
+_MAX_STYLESHEET_BYTES = 50_000
 
 
 def fetch_job_posting(url: str, timeout: int = 15) -> Optional[str]:
@@ -49,3 +56,62 @@ def fetch_job_posting(url: str, timeout: int = 15) -> Optional[str]:
         if line.strip()
     ]
     return "\n".join(lines)
+
+
+def fetch_style_signals(url: str, timeout: int = 15, max_stylesheets: int = 3) -> Optional[str]:
+    """Fetch a URL and return a compact digest of colors/fonts used, or None on failure."""
+    try:
+        resp = requests.get(url, headers=_HEADERS, timeout=timeout)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"  Fehler beim Abrufen der URL: {exc}")
+        return None
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    css_chunks = []
+
+    theme_color_tag = soup.find("meta", attrs={"name": "theme-color"})
+    if theme_color_tag and theme_color_tag.get("content"):
+        css_chunks.append(theme_color_tag["content"])
+
+    for style_tag in soup.find_all("style"):
+        if style_tag.string:
+            css_chunks.append(style_tag.string)
+
+    stylesheet_links = [
+        link.get("href")
+        for link in soup.find_all("link", rel=lambda v: v and "stylesheet" in v.lower())
+        if link.get("href")
+    ][:max_stylesheets]
+
+    for href in stylesheet_links:
+        stylesheet_url = urljoin(url, href)
+        try:
+            css_resp = requests.get(stylesheet_url, headers=_HEADERS, timeout=timeout)
+            css_resp.raise_for_status()
+        except requests.RequestException:
+            continue
+        css_chunks.append(css_resp.text[:_MAX_STYLESHEET_BYTES])
+
+    css_text = "\n".join(css_chunks)
+    if not css_text:
+        return None
+
+    colors = Counter(match.lower() for match in _COLOR_PATTERN.findall(css_text))
+    fonts = Counter(match.strip() for match in _FONT_FAMILY_PATTERN.findall(css_text))
+
+    if not colors and not fonts:
+        return None
+
+    digest_lines = []
+    if colors:
+        digest_lines.append("Farben (Häufigkeit):")
+        for color, count in colors.most_common(20):
+            digest_lines.append(f"- {color}: {count}")
+    if fonts:
+        digest_lines.append("font-family-Deklarationen (Häufigkeit):")
+        for font, count in fonts.most_common(10):
+            digest_lines.append(f"- {font}: {count}")
+
+    return "\n".join(digest_lines)
