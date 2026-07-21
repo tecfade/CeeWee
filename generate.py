@@ -124,6 +124,8 @@ def main() -> None:
         print(f"  {len(skills)} Skill-Gruppe(n) geladen")
 
     contact = load_contact(CV_DIR)
+    if contact:
+        print(f"  Kontaktdaten geladen ({contact.get('name', '–')})")
     cover_notes = load_cover_notes(CV_DIR) if want_cover else None
 
     # ── Optionally analyse job posting ───────────────────────────────────────
@@ -169,6 +171,7 @@ def main() -> None:
             hobby_projects=hobby_projects or None,
             employers=employers or None,
             skills=skills or None,
+            contact=contact or None,
             job_analysis=job_analysis,
         )
 

@@ -26,8 +26,8 @@ CeeWee/
 │   ├── converter.py           # Ausgabe speichern und nach PDF/DOCX konvertieren
 │   └── scraper.py             # Stellenanzeigen von URLs abrufen
 ├── cv/                        # Eigene CV-Daten
+│   ├── contact.md             # Kontaktdaten (Name, E-Mail, Telefon, Adresse, Website, LinkedIn, GitHub)
 │   ├── summary.md             # Kandidaten-Profil / Kurzvorstellung
-│   ├── contact.md             # Kontaktdaten (Name, E-Mail, Telefon, Adresse, LinkedIn)
 │   ├── cover.md               # optional: Anschreiben-Entwurf/Eckpunkte (freier Body, analog zu summary.md)
 │   ├── employers.md           # Arbeitgeber-Liste (YAML-Frontmatter: eintraege: […])
 │   ├── skills.md              # Skill-Gruppen (YAML-Frontmatter: gruppen: […])
@@ -77,6 +77,22 @@ Werden dem Anschreiben-Agenten konkrete Design-Werte mitgegeben (aus dem zuvor g
 
 ## Frontmatter-Schema
 
+### Kontaktdaten (`cv/contact.md`)
+
+```yaml
+---
+name: Vorname Nachname
+email: name@example.com
+telefon: "+49 151 12345678"    # optional
+adresse: "Straße 1, PLZ Ort"   # optional
+website: https://…             # optional
+linkedin: https://…            # optional
+github: https://…              # optional
+---
+```
+
+Alle Felder außer `name` sind optional. Nicht gesetzte Felder erscheinen nicht im generierten Lebenslauf (keine Platzhalter).
+
 ### Projekte (`cv/projects/[name].md`)
 
 ```yaml
@@ -117,18 +133,6 @@ gruppen:
     skills: [Python, JavaScript, TypeScript]
   - name: Frameworks
     skills: [React, FastAPI]
----
-```
-
-### Kontakt (`cv/contact.md`)
-
-```yaml
----
-name: Vorname Nachname
-email: name@example.com
-telefon: "+49 …"
-adresse: "Straße Hausnummer, PLZ Ort"
-linkedin: https://www.linkedin.com/in/…
 ---
 ```
 

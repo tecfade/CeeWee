@@ -32,7 +32,7 @@ Nicht existierende Funktionen — verwende diese NICHT: `#wrap-content`, `#layou
 
 ## CV-Aufbau
 
-1. Header — Name prominent, Kontaktdaten klein darunter
+1. Header — Name prominent, Kontaktdaten klein darunter. Nutze ausschließlich die im Abschnitt `## Kontaktdaten` gelieferten Werte (z.B. Email, Telefon, Adresse, Website, LinkedIn, GitHub); fehlende Felder werden weggelassen, nicht erfunden oder durch Platzhalter ersetzt. Ist kein `## Kontaktdaten`-Abschnitt vorhanden, enthält der Header nur den Namen.
 2. Profil/Summary — kompakte Zusammenfassung
 3. Beruflicher Werdegang — tabellarische Übersicht der Arbeitgeber (nur falls Daten vorhanden). Zeitraum linksbündig, Arbeitgeber und Rolle daneben. Neueste zuerst.
 4. Berufserfahrung — Projekte neueste zuerst (absteigende reihenfolge)

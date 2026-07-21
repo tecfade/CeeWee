@@ -92,6 +92,17 @@ def load_skills(base_dir: Path) -> list[dict]:
     return metadata.get("gruppen", [])
 
 
+def load_contact(base_dir: Path) -> dict:
+    """Lädt contact.md und gibt die Kontaktdaten als Dict zurück."""
+    path = base_dir / "contact.md"
+    if not path.exists():
+        return {}
+
+    content = path.read_text(encoding="utf-8")
+    metadata, _ = _parse_frontmatter(content)
+    return metadata
+
+
 def load_summary(base_dir: Path) -> Optional[str]:
     path = base_dir / "summary.md"
     if not path.exists():
@@ -100,17 +111,6 @@ def load_summary(base_dir: Path) -> Optional[str]:
     content = path.read_text(encoding="utf-8")
     _, body = _parse_frontmatter(content)
     return body.strip() or None
-
-
-def load_contact(base_dir: Path) -> dict:
-    """Lädt contact.md und gibt die Kontaktdaten (name, email, telefon, adresse, linkedin) zurück."""
-    path = base_dir / "contact.md"
-    if not path.exists():
-        return {}
-
-    content = path.read_text(encoding="utf-8")
-    metadata, _ = _parse_frontmatter(content)
-    return metadata
 
 
 def load_cover_notes(base_dir: Path) -> Optional[str]:
