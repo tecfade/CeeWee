@@ -1,5 +1,7 @@
+import re
 import shutil
 import subprocess
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -8,6 +10,29 @@ from typing import Optional
 def new_timestamp() -> str:
     """Zeitstempel für einen Generierungslauf — von generate.py einmalig erzeugt und für CV und Anschreiben geteilt."""
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+_UMLAUT_MAP = str.maketrans({
+    "ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss",
+    "Ä": "Ae", "Ö": "Oe", "Ü": "Ue",
+})
+
+
+def slugify_company(name: Optional[str], max_length: int = 30) -> Optional[str]:
+    """Wandelt einen Unternehmensnamen in ein dateinamensicheres Segment um (für den Ausgabe-Dateinamen)."""
+    if not name:
+        return None
+
+    text = name.translate(_UMLAUT_MAP)
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-")
+    if not text:
+        return None
+
+    if len(text) > max_length:
+        text = text[:max_length].rsplit("-", 1)[0].strip("-") or text[:max_length]
+
+    return text or None
 
 
 def _stem(prefix: str = "cv") -> str:

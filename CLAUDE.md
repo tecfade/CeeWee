@@ -39,8 +39,8 @@ CeeWee/
 │   └── hobby_projects/        # Eigene / Open-Source-Projekte
 ├── cv_example/                # Beispieldaten (anonymisiert, zur Orientierung)
 ├── output/                    # Generierte Ausgaben (nicht eingecheckt)
-│   ├── cv_YYYY-MM-DD_HH-MM-SS.{typ,pdf,html,docx}
-│   └── cover_YYYY-MM-DD_HH-MM-SS.{typ,pdf,html,docx}   # gleicher Zeitstempel wie zugehöriger CV
+│   ├── cv_[Unternehmen_]YYYY-MM-DD_HH-MM-SS.{typ,pdf,html,docx}
+│   └── cover_[Unternehmen_]YYYY-MM-DD_HH-MM-SS.{typ,pdf,html,docx}   # gleicher Zeitstempel/Unternehmen wie zugehöriger CV
 ├── generate.py                # CLI-Einstiegspunkt
 ├── requirements.txt
 ├── .env                       # ANTHROPIC_API_KEY (nicht eingecheckt)
@@ -60,7 +60,7 @@ CeeWee/
 2. Optional: Stellenanzeige per URL (`--target`) oder Datei (`--job-description`) abrufen und per Claude analysieren
 3. `--cv` generiert nur den Lebenslauf, `--cover` nur das Anschreiben; ohne Angabe (oder mit beiden Flags) werden beide generiert
 4. Claude generiert je Dokument ein vollständiges Typst- oder HTML-Dokument (`generate_cv` / `generate_cover_letter`)
-5. `converter.py` speichert die Quelldatei(en) und konvertiert nach PDF/DOCX — CV und Anschreiben aus demselben Lauf erhalten denselben Zeitstempel-Stem (Präfix `cv_`/`cover_`)
+5. `converter.py` speichert die Quelldatei(en) und konvertiert nach PDF/DOCX — CV und Anschreiben aus demselben Lauf erhalten denselben Zeitstempel-Stem (Präfix `cv_`/`cover_`). Wurde eine Stellenanzeige analysiert, wird der Unternehmensname (`job_analysis["unternehmen"]`) per `slugify_company()` dateinamensicher aufbereitet (Umlaute transliteriert, Sonderzeichen entfernt, auf 30 Zeichen gekürzt) und dem Zeitstempel vorangestellt.
 
 Werden CV und Anschreiben im selben Lauf erzeugt, wird zuerst der CV generiert; die dort tatsächlich verwendete Akzentfarbe/Schriftart wird per `_extract_design_tokens()` aus dem generierten Dokument ausgelesen und dem Anschreiben-Agenten verbindlich vorgegeben (siehe Design-Werte-Konvention unten), damit beide Dokumente optisch als zusammengehöriges Bewerbungspaket wirken. Bei getrennten Läufen (`--cv` heute, `--cover` später) entfällt diese Garantie.
 
@@ -173,7 +173,7 @@ python generate.py --job-description stelle.txt
 python generate.py --cover --target https://company.com/jobs/xyz
 ```
 
-Ausgaben landen als `output/cv_YYYY-MM-DD_HH-MM-SS.*` bzw. `output/cover_YYYY-MM-DD_HH-MM-SS.*` in `output/`. CV und Anschreiben aus demselben Lauf teilen sich den Zeitstempel-Stem.
+Ausgaben landen als `output/cv_[Unternehmen_]YYYY-MM-DD_HH-MM-SS.*` bzw. `output/cover_[Unternehmen_]YYYY-MM-DD_HH-MM-SS.*` in `output/`. CV und Anschreiben aus demselben Lauf teilen sich den Zeitstempel-Stem; der Unternehmensname wird nur bei erfolgreicher Stellenanzeigen-Analyse (`--target`/`--job-description`) ergänzt.
 
 ## Sprache
 

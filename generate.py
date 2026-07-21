@@ -106,7 +106,7 @@ def main() -> None:
         analyze_job_posting, generate_cv, generate_cover_letter, _extract_design_tokens,
         analyze_style, resolve_brand_tokens,
     )
-    from core.converter import convert, new_timestamp
+    from core.converter import convert, new_timestamp, slugify_company
     import anthropic
 
     generate_both = not args.cv and not args.cover
@@ -168,6 +168,9 @@ def main() -> None:
     ts = new_timestamp()
     design_tokens = None
 
+    company_slug = slugify_company(job_analysis.get("unternehmen")) if job_analysis else None
+    stem_infix = f"{company_slug}_" if company_slug else ""
+
     # ── Optionally match target-page brand style ─────────────────────────────
     if args.match_style:
         if not args.target:
@@ -202,7 +205,7 @@ def main() -> None:
             design_tokens=design_tokens,
         )
 
-        convert(cv_source, args.output, args.format, engine=args.engine, prefix="cv", stem=f"cv_{ts}")
+        convert(cv_source, args.output, args.format, engine=args.engine, prefix="cv", stem=f"cv_{stem_infix}{ts}")
 
         if want_cover:
             design_tokens = _extract_design_tokens(cv_source, args.engine) or design_tokens
@@ -223,7 +226,7 @@ def main() -> None:
             design_tokens=design_tokens,
         )
 
-        convert(cover_source, args.output, args.format, engine=args.engine, prefix="cover", stem=f"cover_{ts}")
+        convert(cover_source, args.output, args.format, engine=args.engine, prefix="cover", stem=f"cover_{stem_infix}{ts}")
 
     print("Fertig.")
 
