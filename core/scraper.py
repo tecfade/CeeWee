@@ -21,6 +21,21 @@ _COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b|rgb\([^)]+\)")
 _FONT_FAMILY_PATTERN = re.compile(r"font-family\s*:\s*([^;}{]+)")
 _MAX_STYLESHEET_BYTES = 50_000
 
+# Pfad-Marker zur Priorisierung beim Fetch: generische Plugin-/Vendor-CSS enthält
+# praktisch nie die tatsächliche Markenfarbe, Custom-/Child-Theme-CSS sehr häufig.
+_GENERIC_STYLESHEET_MARKERS = ("/plugins/", "/vendor/", "/node_modules/")
+_BRAND_STYLESHEET_MARKERS = ("custom", "dynamic", "child", "brand", "scheme")
+
+
+def _stylesheet_priority(href: str) -> int:
+    """Niedrigere Zahl = beim Fetch bevorzugt (0 = vermutlich markenspezifisch, 2 = generisch)."""
+    href_lower = href.lower()
+    if any(marker in href_lower for marker in _GENERIC_STYLESHEET_MARKERS):
+        return 2
+    if any(marker in href_lower for marker in _BRAND_STYLESHEET_MARKERS):
+        return 0
+    return 1
+
 
 def fetch_job_posting(url: str, timeout: int = 15) -> Optional[str]:
     """Fetch a URL and return the main text content, or None on failure."""
@@ -83,7 +98,8 @@ def fetch_style_signals(url: str, timeout: int = 15, max_stylesheets: int = 3) -
         link.get("href")
         for link in soup.find_all("link", rel=lambda v: v and "stylesheet" in v.lower())
         if link.get("href")
-    ][:max_stylesheets]
+    ]
+    stylesheet_links = sorted(stylesheet_links, key=_stylesheet_priority)[:max_stylesheets]
 
     for href in stylesheet_links:
         stylesheet_url = urljoin(url, href)
