@@ -1,13 +1,14 @@
 ## Beschreibung
 
-KI-gestützter Lebenslauf-Generator: Strukturierte CV-Daten aus Markdown-Dateien werden per Anthropic API an Claude gesendet, der daraus ein druckfertiges Dokument generiert (Typst oder HTML), das anschließend nach PDF/DOCX konvertiert wird.
+KI-gestützter Lebenslauf- und Anschreiben-Generator: Strukturierte CV-Daten aus Markdown-Dateien werden per Anthropic API an Claude gesendet, der daraus ein druckfertiges Dokument generiert (Typst oder HTML), das anschließend nach PDF/DOCX konvertiert wird.
 
 ## Ziele
 
 - CV-Inhalte modular in einzelnen Markdown-Dateien mit YAML-Frontmatter pflegen
 - Automatische Generierung via Claude API (claude-opus-4-7)
 - Ausgabe nach PDF (via Typst oder WeasyPrint) und DOCX (via Pandoc)
-- Optionales Job-Tailoring: CV an konkrete Stellenanzeige anpassen
+- Optionales Job-Tailoring: CV und Anschreiben an konkrete Stellenanzeige anpassen
+- Wahlweise nur Lebenslauf (`--cv`), nur Anschreiben (`--cover`) oder beide (Standard) generieren — als zusammengehöriges Bewerbungspaket mit identischem Design
 
 ## Verzeichnisstruktur
 
@@ -16,14 +17,18 @@ CeeWee/
 ├── agents/                    # System-Prompts für Claude-Agenten (Markdown + YAML-Frontmatter)
 │   ├── cv-typst.md            # Prompt: CV als Typst-Dokument generieren
 │   ├── cv-html.md             # Prompt: CV als HTML generieren
+│   ├── cover-typst.md         # Prompt: Anschreiben als Typst-Dokument generieren
+│   ├── cover-html.md          # Prompt: Anschreiben als HTML generieren
 │   └── job-analyzer.md        # Prompt: Stellenanzeige strukturiert analysieren
 ├── core/
-│   ├── agent.py               # Claude-API-Aufrufe (generate_cv, analyze_job_posting)
-│   ├── loader.py              # Markdown-Dateien laden (Projekte, Arbeitgeber, Summary)
+│   ├── agent.py               # Claude-API-Aufrufe (generate_cv, generate_cover_letter, analyze_job_posting)
+│   ├── loader.py              # Markdown-Dateien laden (Projekte, Arbeitgeber, Summary, Kontakt, Anschreiben-Notizen)
 │   ├── converter.py           # Ausgabe speichern und nach PDF/DOCX konvertieren
 │   └── scraper.py             # Stellenanzeigen von URLs abrufen
 ├── cv/                        # Eigene CV-Daten
 │   ├── summary.md             # Kandidaten-Profil / Kurzvorstellung
+│   ├── contact.md             # Kontaktdaten (Name, E-Mail, Telefon, Adresse, LinkedIn)
+│   ├── cover.md               # optional: Anschreiben-Entwurf/Eckpunkte (freier Body, analog zu summary.md)
 │   ├── employers.md           # Arbeitgeber-Liste (YAML-Frontmatter: eintraege: […])
 │   ├── skills.md              # Skill-Gruppen (YAML-Frontmatter: gruppen: […])
 │   ├── projects/              # Berufliche Projekte
@@ -34,7 +39,8 @@ CeeWee/
 │   └── hobby_projects/        # Eigene / Open-Source-Projekte
 ├── cv_example/                # Beispieldaten (anonymisiert, zur Orientierung)
 ├── output/                    # Generierte Ausgaben (nicht eingecheckt)
-│   └── cv_YYYY-MM-DD_HH-MM-SS.{typ,pdf,html,docx}
+│   ├── cv_YYYY-MM-DD_HH-MM-SS.{typ,pdf,html,docx}
+│   └── cover_YYYY-MM-DD_HH-MM-SS.{typ,pdf,html,docx}   # gleicher Zeitstempel wie zugehöriger CV
 ├── generate.py                # CLI-Einstiegspunkt
 ├── requirements.txt
 ├── .env                       # ANTHROPIC_API_KEY (nicht eingecheckt)
@@ -50,12 +56,24 @@ CeeWee/
 
 ## Generierungsablauf
 
-1. `generate.py` lädt Projektdaten, Summary und Arbeitgeber aus `cv/`
+1. `generate.py` lädt Projektdaten, Summary, Arbeitgeber, Kontakt und optional Anschreiben-Notizen aus `cv/`
 2. Optional: Stellenanzeige per URL (`--target`) oder Datei (`--job-description`) abrufen und per Claude analysieren
-3. Claude generiert ein vollständiges Typst- oder HTML-Dokument
-4. `converter.py` speichert die Quelldatei und konvertiert nach PDF/DOCX
+3. `--cv` generiert nur den Lebenslauf, `--cover` nur das Anschreiben; ohne Angabe (oder mit beiden Flags) werden beide generiert
+4. Claude generiert je Dokument ein vollständiges Typst- oder HTML-Dokument (`generate_cv` / `generate_cover_letter`)
+5. `converter.py` speichert die Quelldatei(en) und konvertiert nach PDF/DOCX — CV und Anschreiben aus demselben Lauf erhalten denselben Zeitstempel-Stem (Präfix `cv_`/`cover_`)
+
+Werden CV und Anschreiben im selben Lauf erzeugt, wird zuerst der CV generiert; die dort tatsächlich verwendete Akzentfarbe/Schriftart wird per `_extract_design_tokens()` aus dem generierten Dokument ausgelesen und dem Anschreiben-Agenten verbindlich vorgegeben (siehe Design-Werte-Konvention unten), damit beide Dokumente optisch als zusammengehöriges Bewerbungspaket wirken. Bei getrennten Läufen (`--cv` heute, `--cover` später) entfällt diese Garantie.
 
 Der Claude-Aufruf in `core/agent.py` nutzt Prompt Caching (`cache_control: ephemeral`) für Projektdaten und System-Prompt.
+
+### Design-Werte-Konvention
+
+Die CV- und Anschreiben-Agenten (`cv-typst.md`, `cv-html.md`, `cover-typst.md`, `cover-html.md`) müssen die verwendete Akzentfarbe und Schriftart maschinell auslesbar im generierten Dokument hinterlegen:
+
+- **Typst**: genau eine `#let accent = rgb("#RRGGBB")`-Definition nahe dem Dokumentanfang, genau eine `font:`-Angabe im initialen `#set text(...)`
+- **HTML**: CSS-Custom-Properties `--accent-color` und `--font-family` im `:root { … }` des `<style>`-Blocks
+
+Werden dem Anschreiben-Agenten konkrete Design-Werte mitgegeben (aus dem zuvor generierten CV), sind exakt diese zu verwenden statt eigene zu interpretieren.
 
 ## Frontmatter-Schema
 
@@ -102,6 +120,30 @@ gruppen:
 ---
 ```
 
+### Kontakt (`cv/contact.md`)
+
+```yaml
+---
+name: Vorname Nachname
+email: name@example.com
+telefon: "+49 …"
+adresse: "Straße Hausnummer, PLZ Ort"
+linkedin: https://www.linkedin.com/in/…
+---
+```
+
+### Anschreiben-Notizen (`cv/cover.md`, optional)
+
+Analog zu `summary.md`: freier Markdown-Body (Frontmatter optional), den Claude als Grundlage für die Formulierung nutzt — z. B. bevorzugte Kernargumente, Tonalität, Punkte, die immer erwähnt werden sollen. Existiert die Datei nicht, generiert Claude das Anschreiben eigenständig aus Profil, Werdegang und ggf. `job_analysis`.
+
+```yaml
+---
+headline: Anschreiben-Notizen
+---
+
+Freitext mit Eckpunkten, die im Anschreiben berücksichtigt werden sollen …
+```
+
 ## Build
 
 ```bash
@@ -110,17 +152,22 @@ pip install -r requirements.txt
 export ANTHROPIC_API_KEY='sk-ant-...'
 
 # Generieren
-python generate.py                              # Typst + PDF (Standard)
+python generate.py                              # Typst + PDF (Standard) — CV UND Anschreiben
 python generate.py --format pdf                 # nur PDF
 python generate.py --format html pdf docx       # alle Formate
 python generate.py --engine html                # HTML-Engine statt Typst
 
-# Job-Tailoring
+# Nur eines der beiden Dokumente
+python generate.py --cv                         # nur Lebenslauf
+python generate.py --cover                      # nur Anschreiben
+
+# Job-Tailoring (gilt für CV und Anschreiben)
 python generate.py --target https://company.com/jobs/xyz
 python generate.py --job-description stelle.txt
+python generate.py --cover --target https://company.com/jobs/xyz
 ```
 
-Ausgaben landen als `output/cv_YYYY-MM-DD_HH-MM-SS.*` in `output/`.
+Ausgaben landen als `output/cv_YYYY-MM-DD_HH-MM-SS.*` bzw. `output/cover_YYYY-MM-DD_HH-MM-SS.*` in `output/`. CV und Anschreiben aus demselben Lauf teilen sich den Zeitstempel-Stem.
 
 ## Sprache
 

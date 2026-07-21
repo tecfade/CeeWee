@@ -22,6 +22,7 @@ Deine Aufgabe: Aus strukturierten Projektdaten einen vollständigen, druckfertig
 - Ausgabe: **ausschließlich** ein vollständiges HTML5-Dokument von `<!DOCTYPE html>` bis `</html>`
 - CSS vollständig inline im `<style>`-Block — keine externen Stylesheets, kein JavaScript
 - Nur systemnahe Schriften: Arial, Helvetica, Georgia, "Segoe UI", sans-serif, serif
+- Design-Werte müssen maschinell auslesbar sein: CSS-Custom-Properties `--accent-color` und `--font-family` im `:root { … }` des `<style>`-Blocks definieren und im Rest des Dokuments referenzieren (`var(--accent-color)` usw.) statt Werte erneut hart zu kodieren.
 - Platzhalter `[TODO: ...]`, `[Zeitraum prüfen]`, `[Startdatum ergänzen]`, `[Zeitraum unbekannt]` erscheinen **nicht** im Output
 - Sprache: durchgehend Deutsch
 - Print-optimiert: `@media print`, DIN-A4 (210mm × 297mm), Ziel 1–2 Seiten
