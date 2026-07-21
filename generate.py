@@ -10,6 +10,7 @@ Verwendung:
   python generate.py --format pdf --job-description stellenanzeige.txt
   python generate.py --cv                          # nur Lebenslauf
   python generate.py --cover --target https://…     # nur Anschreiben, tailored
+  python generate.py --match-style --target https://…  # Akzentfarbe/Schrift der Zielseite übernehmen
 """
 import argparse
 import os
@@ -86,6 +87,11 @@ def main() -> None:
         action="store_true",
         help="Nur das Anschreiben generieren",
     )
+    parser.add_argument(
+        "--match-style",
+        action="store_true",
+        help="Akzentfarbe/Schriftart der Zielseite (--target) übernehmen (Standard: aus). Setzt --target voraus.",
+    )
     args = parser.parse_args()
 
     _require_api_key()
@@ -95,8 +101,11 @@ def main() -> None:
         load_projects, load_summary, load_employers, load_skills,
         load_contact, load_cover_notes,
     )
-    from core.scraper import fetch_job_posting
-    from core.agent import analyze_job_posting, generate_cv, generate_cover_letter, _extract_design_tokens
+    from core.scraper import fetch_job_posting, fetch_style_signals
+    from core.agent import (
+        analyze_job_posting, generate_cv, generate_cover_letter, _extract_design_tokens,
+        analyze_style, resolve_brand_tokens,
+    )
     from core.converter import convert, new_timestamp
     import anthropic
 
@@ -159,6 +168,23 @@ def main() -> None:
     ts = new_timestamp()
     design_tokens = None
 
+    # ── Optionally match target-page brand style ─────────────────────────────
+    if args.match_style:
+        if not args.target:
+            print("--match-style ignoriert: erfordert --target (keine URL angegeben)")
+        else:
+            print(f"Analysiere Markenstil: {args.target}")
+            style_signals = fetch_style_signals(args.target)
+            if style_signals:
+                style_analysis = analyze_style(client, style_signals)
+                design_tokens = resolve_brand_tokens(style_analysis, args.engine)
+                if design_tokens:
+                    print(f"  Markenstil erkannt: {design_tokens}")
+                else:
+                    print("  Kein eindeutiger Markenstil erkennbar – generiere ohne Style-Matching")
+            else:
+                print("  Seite nicht abrufbar oder kein Stil erkennbar – generiere ohne Style-Matching")
+
     # ── Generate CV ──────────────────────────────────────────────────────────
     if want_cv:
         print(f"Generiere Lebenslauf{tailoring_note} …")
@@ -173,12 +199,13 @@ def main() -> None:
             skills=skills or None,
             contact=contact or None,
             job_analysis=job_analysis,
+            design_tokens=design_tokens,
         )
 
         convert(cv_source, args.output, args.format, engine=args.engine, prefix="cv", stem=f"cv_{ts}")
 
         if want_cover:
-            design_tokens = _extract_design_tokens(cv_source, args.engine)
+            design_tokens = _extract_design_tokens(cv_source, args.engine) or design_tokens
 
     # ── Generate cover letter ────────────────────────────────────────────────
     if want_cover:
