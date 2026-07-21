@@ -32,8 +32,15 @@ _html_meta, _HTML_SYSTEM_PROMPT = _load_agent("cv-html.md")
 _analyzer_meta, _JOB_ANALYSIS_PROMPT = _load_agent("job-analyzer.md")
 _cover_typst_meta, _COVER_TYPST_SYSTEM_PROMPT = _load_agent("cover-typst.md")
 _cover_html_meta, _COVER_HTML_SYSTEM_PROMPT = _load_agent("cover-html.md")
+_style_meta, _STYLE_ANALYSIS_PROMPT = _load_agent("style-analyzer.md")
 
 MODEL = _typst_meta.get("model", "claude-opus-4-7")
+
+# Fonts, die auf der jeweiligen Render-Engine sicher verfügbar sind
+_SAFE_FONTS = {
+    "typst": {"sans-serif": "Liberation Sans", "serif": "Liberation Serif"},
+    "html": {"sans-serif": "Arial", "serif": "Georgia"},
+}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -49,6 +56,38 @@ def analyze_job_posting(client: anthropic.Anthropic, job_text: str) -> Optional[
         return json.loads(response.content[0].text)
     except (json.JSONDecodeError, IndexError, KeyError):
         return None
+
+
+def analyze_style(client: anthropic.Anthropic, style_signals: str) -> Optional[dict]:
+    """Extract a plausible brand color and font character from a page's style digest."""
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=256,
+        messages=[{"role": "user", "content": _STYLE_ANALYSIS_PROMPT + "\n\n" + style_signals}],
+    )
+    try:
+        return json.loads(response.content[0].text)
+    except (json.JSONDecodeError, IndexError, KeyError):
+        return None
+
+
+def resolve_brand_tokens(style_analysis: Optional[dict], engine: str) -> Optional[dict]:
+    """Map a style analysis result to concrete, engine-safe design tokens."""
+    if not style_analysis:
+        return None
+
+    tokens = {}
+
+    accent = style_analysis.get("primary_color")
+    if accent:
+        tokens["accent"] = accent
+
+    font_style = style_analysis.get("font_style")
+    safe_font = _SAFE_FONTS.get(engine, {}).get(font_style)
+    if safe_font:
+        tokens["font"] = safe_font
+
+    return tokens or None
 
 
 def _format_project(p: dict, heading: str = "###") -> str:
@@ -206,6 +245,22 @@ def _extract_design_tokens(source: str, engine: str) -> dict:
     return tokens
 
 
+def _apply_design_tokens(design_block: str, design_tokens: Optional[dict]) -> str:
+    """Hängt eine bindende "Verwende exakt: …"-Vorgabe an, falls konkrete Design-Tokens vorliegen."""
+    if not design_tokens:
+        return design_block
+
+    accent = design_tokens.get("accent")
+    font = design_tokens.get("font")
+    if not accent and not font:
+        return design_block
+
+    vorgaben = ", ".join(
+        filter(None, [f"Akzentfarbe {accent}" if accent else None, f"Schriftart {font}" if font else None])
+    )
+    return design_block + f"\n\nVerwende exakt: {vorgaben}"
+
+
 def _build_tailoring_block(job: dict) -> str:
     techs = ", ".join(job.get("technologien", []))
     keywords = ", ".join(job.get("keywords", []))
@@ -241,6 +296,7 @@ def generate_cv(
     skills: Optional[list[dict]] = None,
     contact: Optional[dict] = None,
     job_analysis: Optional[dict] = None,
+    design_tokens: Optional[dict] = None,
     api_key: Optional[str] = None,
 ) -> str:
     """Call Claude API and return a CV document (Typst or HTML depending on engine)."""
@@ -248,7 +304,7 @@ def generate_cv(
 
     system_prompt = _TYPST_SYSTEM_PROMPT if engine == "typst" else _HTML_SYSTEM_PROMPT
     project_data = _build_project_data(projects, summary, hobby_projects, employers, skills, contact)
-    design_block = f"## Design-Anforderungen\n\n{design_prompt}"
+    design_block = _apply_design_tokens(f"## Design-Anforderungen\n\n{design_prompt}", design_tokens)
 
     user_message_parts = [
         {
@@ -301,15 +357,7 @@ def generate_cover_letter(
         candidate_parts.append(f"## Anschreiben-Notizen\n\n{cover_notes}")
     candidate_data = "\n\n".join(p for p in candidate_parts if p)
 
-    design_block = f"## Design-Anforderungen\n\n{design_prompt}"
-    if design_tokens:
-        accent = design_tokens.get("accent")
-        font = design_tokens.get("font")
-        if accent or font:
-            vorgaben = ", ".join(
-                filter(None, [f"Akzentfarbe {accent}" if accent else None, f"Schriftart {font}" if font else None])
-            )
-            design_block += f"\n\nVerwende exakt: {vorgaben}"
+    design_block = _apply_design_tokens(f"## Design-Anforderungen\n\n{design_prompt}", design_tokens)
 
     user_message_parts = [
         {
