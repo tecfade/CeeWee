@@ -42,6 +42,11 @@ python generate.py --format pdf --target https://company.com/jobs/senior-fronten
 
 # fallback render engine (WeasyPrint instead of Typst)
 python generate.py --format pdf --engine html
+
+# apply a change to the most recently generated CV or cover letter,
+# without re-running the full generation
+python modify.py --cv --change "change the accent color from blue to green"
+python modify.py --cover --change "shorten the second paragraph"
 ```
 
 Output lands in `output/`.

@@ -33,6 +33,7 @@ _analyzer_meta, _JOB_ANALYSIS_PROMPT = _load_agent("job-analyzer.md")
 _cover_typst_meta, _COVER_TYPST_SYSTEM_PROMPT = _load_agent("cover-typst.md")
 _cover_html_meta, _COVER_HTML_SYSTEM_PROMPT = _load_agent("cover-html.md")
 _style_meta, _STYLE_ANALYSIS_PROMPT = _load_agent("style-analyzer.md")
+_modify_meta, _MODIFY_SYSTEM_PROMPT = _load_agent("modify.md")
 
 MODEL = _typst_meta.get("model", "claude-opus-4-7")
 
@@ -378,6 +379,38 @@ def generate_cover_letter(
         max_tokens=4096,
         system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message_parts}],
+    )
+
+    return response.content[0].text
+
+
+def modify_document(
+    source: str,
+    change: str,
+    engine: str,
+    row: Optional[int] = None,
+    api_key: Optional[str] = None,
+) -> str:
+    """Wendet einen Änderungswunsch auf ein bereits generiertes CV-/Anschreiben-Dokument an und gibt das vollständige aktualisierte Dokument zurück."""
+    client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
+
+    change_block = f"## Änderungswunsch\n\n{change}"
+    if row is not None:
+        lines = source.splitlines()
+        if 1 <= row <= len(lines):
+            change_block += f"\n\nBezieht sich insbesondere auf Zeile {row} im Originaldokument:\n> {lines[row - 1]}"
+
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=8096,
+        system=[{"type": "text", "text": _MODIFY_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": source, "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": change_block},
+            ],
+        }],
     )
 
     return response.content[0].text

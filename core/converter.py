@@ -39,6 +39,40 @@ def _stem(prefix: str = "cv") -> str:
     return f"{prefix}_{new_timestamp()}"
 
 
+_TIMESTAMP_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}")
+
+
+def find_latest_source(output_dir: Path, prefix: str) -> Optional[Path]:
+    """Findet die zuletzt generierte cv_/cover_-Quelldatei (.typ oder .html) im Ausgabeverzeichnis."""
+    candidates = list(output_dir.glob(f"{prefix}_*.typ")) + list(output_dir.glob(f"{prefix}_*.html"))
+    if not candidates:
+        return None
+
+    def sort_key(path: Path) -> str:
+        match = _TIMESTAMP_PATTERN.search(path.stem)
+        return match.group(0) if match else ""
+
+    return max(candidates, key=sort_key)
+
+
+def sibling_formats(source_path: Path) -> list[str]:
+    """Ermittelt anhand vorhandener Geschwisterdateien, welche Zusatzformate (pdf/docx) neben der Quelldatei erzeugt wurden."""
+    stem = source_path.stem
+    formats = []
+    if (source_path.parent / f"{stem}.pdf").exists():
+        formats.append("pdf")
+    if (source_path.parent / f"{stem}.docx").exists():
+        formats.append("docx")
+    return formats
+
+
+def next_stem(old_stem: str) -> str:
+    """Ersetzt den Zeitstempel eines bestehenden Stems durch einen neuen — Präfix und Firmen-Infix bleiben erhalten."""
+    ts = new_timestamp()
+    new_stem, count = _TIMESTAMP_PATTERN.subn(ts, old_stem)
+    return new_stem if count else f"{old_stem}_{ts}"
+
+
 # ── Typst ─────────────────────────────────────────────────────────────────────
 
 def save_typst(source: str, path: Path) -> None:
