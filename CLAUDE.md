@@ -9,6 +9,7 @@ KI-gestützter Lebenslauf- und Anschreiben-Generator: Strukturierte CV-Daten aus
 - Ausgabe nach PDF (via Typst oder WeasyPrint) und DOCX (via Pandoc)
 - Optionales Job-Tailoring: CV und Anschreiben an konkrete Stellenanzeige anpassen
 - Wahlweise nur Lebenslauf (`--cv`), nur Anschreiben (`--cover`) oder beide (Standard) generieren — als zusammengehöriges Bewerbungspaket mit identischem Design
+- Nachträgliche Änderungen an einem bereits generierten Dokument per `modify.py` (`--cv`/`--cover` + `--change`), ohne die komplette Generierung erneut anzustoßen
 
 ## Verzeichnisstruktur
 
@@ -19,9 +20,10 @@ CeeWee/
 │   ├── cv-html.md             # Prompt: CV als HTML generieren
 │   ├── cover-typst.md         # Prompt: Anschreiben als Typst-Dokument generieren
 │   ├── cover-html.md          # Prompt: Anschreiben als HTML generieren
-│   └── job-analyzer.md        # Prompt: Stellenanzeige strukturiert analysieren
+│   ├── job-analyzer.md        # Prompt: Stellenanzeige strukturiert analysieren
+│   └── modify.md              # Prompt: bestehendes Dokument gemäß Änderungswunsch aktualisieren
 ├── core/
-│   ├── agent.py               # Claude-API-Aufrufe (generate_cv, generate_cover_letter, analyze_job_posting)
+│   ├── agent.py               # Claude-API-Aufrufe (generate_cv, generate_cover_letter, modify_document, analyze_job_posting)
 │   ├── loader.py              # Markdown-Dateien laden (Projekte, Arbeitgeber, Summary, Kontakt, Anschreiben-Notizen)
 │   ├── converter.py           # Ausgabe speichern und nach PDF/DOCX konvertieren
 │   └── scraper.py             # Stellenanzeigen von URLs abrufen
@@ -42,6 +44,7 @@ CeeWee/
 │   ├── cv_[Unternehmen_]YYYY-MM-DD_HH-MM-SS.{typ,pdf,html,docx}
 │   └── cover_[Unternehmen_]YYYY-MM-DD_HH-MM-SS.{typ,pdf,html,docx}   # gleicher Zeitstempel/Unternehmen wie zugehöriger CV
 ├── generate.py                # CLI-Einstiegspunkt
+├── modify.py                  # CLI-Einstiegspunkt für nachträgliche Änderungen
 ├── requirements.txt
 ├── .env                       # ANTHROPIC_API_KEY (nicht eingecheckt)
 └── .env.example
@@ -67,6 +70,10 @@ Werden CV und Anschreiben im selben Lauf erzeugt, wird zuerst der CV generiert; 
 Optional kann per `--match-style` (setzt `--target` voraus) Akzentfarbe und Schriftcharakter (serif/sans-serif) der Stellenanzeigen-Zielseite übernommen werden, damit die generierten Unterlagen optisch an die Marke des potenziellen Arbeitgebers angelehnt sind. Die daraus gewonnenen Marken-Tokens sind der Ausgangswert für den CV; tatsächlich im generierten CV gelandete Design-Werte (via `_extract_design_tokens()`) haben weiterhin Vorrang für das Anschreiben.
 
 Der Claude-Aufruf in `core/agent.py` nutzt Prompt Caching (`cache_control: ephemeral`) für Projektdaten und System-Prompt.
+
+### Nachträgliche Änderungen (`modify.py`)
+
+`modify.py --cv --change "…"` bzw. `modify.py --cover --change "…"` wendet einen frei formulierten Änderungswunsch auf das **zuletzt generierte** CV- bzw. Anschreiben-Dokument an (`find_latest_source()` sucht die neueste `cv_*`/`cover_*`-Quelldatei in `output/`, unabhängig von Engine oder Unternehmen). Engine (Typst/HTML) und Zielformate (PDF/DOCX) werden automatisch aus der gefundenen Datei bzw. ihren Geschwisterdateien übernommen — kein `--engine`-/`--format`-Flag nötig. `modify_document()` schickt das vollständige Dokument plus Änderungswunsch an Claude (Prompt `agents/modify.md`) und erhält das vollständige aktualisierte Dokument zurück (kein Diff/Patch). Das Ergebnis wird per `next_stem()` unter einem neuen Zeitstempel gespeichert — Präfix und ggf. Unternehmens-Slug aus dem Original bleiben erhalten, das Original selbst bleibt unverändert bestehen. Optional kann `--row` eine Zeilennummer im Engine-Quelltext angeben, auf die sich die Änderung besonders bezieht (auch als Vorbereitung für eine spätere grafische Oberfläche gedacht).
 
 ### Design-Werte-Konvention
 
@@ -171,6 +178,10 @@ python generate.py --cover                      # nur Anschreiben
 python generate.py --target https://company.com/jobs/xyz
 python generate.py --job-description stelle.txt
 python generate.py --cover --target https://company.com/jobs/xyz
+
+# Nachträgliche Änderung am zuletzt generierten Dokument
+python modify.py --cv --change "ändere die Akzentfarbe von Blau zu Grün"
+python modify.py --cover --change "kürze den zweiten Absatz" --row 42
 ```
 
 Ausgaben landen als `output/cv_[Unternehmen_]YYYY-MM-DD_HH-MM-SS.*` bzw. `output/cover_[Unternehmen_]YYYY-MM-DD_HH-MM-SS.*` in `output/`. CV und Anschreiben aus demselben Lauf teilen sich den Zeitstempel-Stem; der Unternehmensname wird nur bei erfolgreicher Stellenanzeigen-Analyse (`--target`/`--job-description`) ergänzt.
